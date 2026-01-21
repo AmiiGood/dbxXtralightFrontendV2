@@ -155,7 +155,7 @@ export default function ReportesPage() {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
 
-      const fileName = `Reporte_Calidad_${fechas.fechaInicio}_${fechas.fechaFin}.xlsx`;
+      const fileName = `FPG-QA-001 Ver.03 OBA ensamble.xlsx`;
       saveAs(data, fileName);
     } catch (error) {
       console.error("Error exporting:", error.response?.data);
