@@ -11,10 +11,12 @@ import {
   ToggleRight,
   Search,
   X,
+  Key,
 } from "lucide-react";
 import api from "../../services/api";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
+import PermisosRolModal from "../../components/admin/PermisosRolModal";
 
 const tabs = [
   { id: "turnos", label: "Turnos", icon: Clock },
@@ -32,6 +34,8 @@ export default function CatalogosPage() {
   const [editingItem, setEditingItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({});
+  const [showPermisosModal, setShowPermisosModal] = useState(false);
+  const [selectedRolPermisos, setSelectedRolPermisos] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -86,6 +90,11 @@ export default function CatalogosPage() {
       console.error("Error toggling active:", error);
       alert(error.response?.data?.message || "Error al cambiar estado");
     }
+  };
+
+  const handleOpenPermisos = (rol) => {
+    setSelectedRolPermisos(rol);
+    setShowPermisosModal(true);
   };
 
   const handleSubmit = async (e) => {
@@ -323,7 +332,37 @@ export default function CatalogosPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {renderActions(item)}
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleOpenPermisos(item)}
+                        className="p-1.5 text-gray-400 hover:text-secondary hover:bg-secondary/10 rounded-lg transition-colors"
+                        title="Gestionar permisos"
+                      >
+                        <Key className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleToggleActive(item)}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          item.activo
+                            ? "text-gray-400 hover:text-red-500 hover:bg-red-50"
+                            : "text-gray-400 hover:text-green-500 hover:bg-green-50"
+                        }`}
+                        title={item.activo ? "Desactivar" : "Activar"}
+                      >
+                        {item.activo ? (
+                          <ToggleRight className="w-4 h-4" />
+                        ) : (
+                          <ToggleLeft className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -662,6 +701,20 @@ export default function CatalogosPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal de Permisos */}
+      {showPermisosModal && selectedRolPermisos && (
+        <PermisosRolModal
+          rol={selectedRolPermisos}
+          onClose={() => {
+            setShowPermisosModal(false);
+            setSelectedRolPermisos(null);
+          }}
+          onSave={() => {
+            fetchData();
+          }}
+        />
       )}
     </div>
   );
