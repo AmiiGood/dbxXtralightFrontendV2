@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -32,10 +32,21 @@ const moduleRoutes = {
   Catálogos: "/admin/catalogos",
 };
 
-export default function Sidebar({ modulos = [], loading = false }) {
+export default function Sidebar({ modulos = [], loading = false, onToggle }) {
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+
+  // Notificar al padre cuando cambie el estado
+  useEffect(() => {
+    if (onToggle) {
+      onToggle(collapsed);
+    }
+  }, [collapsed, onToggle]);
+
+  const handleToggle = () => {
+    setCollapsed(!collapsed);
+  };
 
   const handleLogout = () => {
     logout();
@@ -148,7 +159,7 @@ export default function Sidebar({ modulos = [], loading = false }) {
 
       {/* Toggle button */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={handleToggle}
         className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow"
       >
         {collapsed ? (

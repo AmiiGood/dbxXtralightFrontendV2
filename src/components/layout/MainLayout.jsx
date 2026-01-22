@@ -16,6 +16,7 @@ const pageTitles = {
 export default function MainLayout() {
   const [modulos, setModulos] = useState([]);
   const [loadingModulos, setLoadingModulos] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
 
   const pageTitle = pageTitles[location.pathname] || "Sistema Central";
@@ -37,11 +38,23 @@ export default function MainLayout() {
     fetchModulos();
   }, []);
 
+  const handleSidebarToggle = (collapsed) => {
+    setSidebarCollapsed(collapsed);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar modulos={modulos} loading={loadingModulos} />
+      <Sidebar
+        modulos={modulos}
+        loading={loadingModulos}
+        onToggle={handleSidebarToggle}
+      />
 
-      <div className="transition-all duration-300 ml-64">
+      <div
+        className={`transition-all duration-300 ${
+          sidebarCollapsed ? "ml-20" : "ml-64"
+        }`}
+      >
         <Header title={pageTitle} />
 
         <main className="p-6">
