@@ -18,7 +18,7 @@ const iconMap = {
   Dashboard: LayoutDashboard,
   "Gestión de Usuarios": Users,
   "Logs del Sistema": FileText,
-  "Registro de Defectos": ClipboardList,
+  "FPG-QA-001 Ver.03 OBA ensamble": ClipboardList,
   "Reportes de Calidad": BarChart3,
   Catálogos: Settings,
 };
@@ -27,7 +27,7 @@ const moduleRoutes = {
   Dashboard: "/dashboard",
   "Gestión de Usuarios": "/admin/usuarios",
   "Logs del Sistema": "/admin/logs",
-  "Registro de Defectos": "/calidad/defectos",
+  "FPG-QA-001 Ver.03 OBA ensamble": "/calidad/defectos",
   "Reportes de Calidad": "/calidad/reportes",
   Catálogos: "/admin/catalogos",
 };
@@ -58,7 +58,9 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
     ["Gestión de Usuarios", "Logs del Sistema", "Catálogos"].includes(m.nombre),
   );
   const calidadModulos = modulos.filter((m) =>
-    ["Registro de Defectos", "Reportes de Calidad"].includes(m.nombre),
+    ["FPG-QA-001 Ver.03 OBA ensamble", "Reportes de Calidad"].includes(
+      m.nombre,
+    ),
   );
   const dashboardModulo = modulos.find((m) => m.nombre === "Dashboard");
 
