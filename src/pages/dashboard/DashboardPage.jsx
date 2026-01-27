@@ -10,6 +10,12 @@ import {
 } from "lucide-react";
 import api from "../../services/api";
 
+// Helper function to simplify shift name (remove "Turno " prefix)
+const formatTurno = (turno) => {
+  if (!turno) return "";
+  return turno.replace(/^Turno\s*/i, "");
+};
+
 const StatCard = ({ title, value, icon: Icon, color, subtitle, loading }) => (
   <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
     <div className="flex items-center justify-between">
@@ -55,7 +61,9 @@ export default function DashboardPage() {
 
       // Obtener datos del día
       const [registrosRes, topRes, catalogosRes] = await Promise.all([
-        api.get(`/defectos?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&limit=100`),
+        api.get(
+          `/defectos?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&limit=100`,
+        ),
         api.get(
           `/defectos/top-defectos?limit=5&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         ),
@@ -121,7 +129,7 @@ export default function DashboardPage() {
               <p className="text-white/90 mt-2 text-sm">
                 Turno actual:{" "}
                 <span className="font-semibold">
-                  {stats.turnoActual.nombre}
+                  {formatTurno(stats.turnoActual.nombre)}
                 </span>
               </p>
             )}

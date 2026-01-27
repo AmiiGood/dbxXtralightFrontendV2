@@ -49,6 +49,27 @@ const accionIcons = {
   CHANGE_PASSWORD_FAILED: "❌",
 };
 
+// Helper function to format date as DD/MM/YYYY HH:mm:ss
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  const seconds = date.getSeconds().toString().padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+};
+
+// Helper function to format date as DD/MM/YYYY (without time)
+const formatDateOnly = (dateString) => {
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 export default function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [catalogos, setCatalogos] = useState({
@@ -181,7 +202,6 @@ export default function LogsPage() {
   const exportToExcel = async () => {
     setExporting(true);
     try {
-      // Obtener todos los logs para el período con los filtros actuales
       const params = new URLSearchParams({
         limit: "500",
         offset: "0",
@@ -199,12 +219,10 @@ export default function LogsPage() {
       const response = await api.get(`/logs?${params}`);
       const logsData = response.data.data?.logs || [];
 
-      // Crear workbook
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "Sistema Central";
       workbook.created = new Date();
 
-      // Hoja 1: Logs detallados
       const wsLogs = workbook.addWorksheet("Logs del Sistema");
       wsLogs.columns = [
         { header: "ID", key: "id", width: 8 },
@@ -218,7 +236,6 @@ export default function LogsPage() {
         { header: "IP", key: "ip", width: 15 },
       ];
 
-      // Estilo del header
       wsLogs.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
       wsLogs.getRow(1).fill = {
         type: "pattern",
@@ -227,7 +244,6 @@ export default function LogsPage() {
       };
       wsLogs.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
 
-      // Agregar datos
       logsData.forEach((log) => {
         const row = wsLogs.addRow({
           id: log.id,
@@ -241,7 +257,6 @@ export default function LogsPage() {
           ip: log.ip_address || "",
         });
 
-        // Colorear filas según acción
         const accionColorMap = {
           LOGIN_SUCCESS: "FFE8F5E9",
           LOGIN_FAILED: "FFFFEBEE",
@@ -266,8 +281,7 @@ export default function LogsPage() {
         }
       });
 
-      // Agregar bordes a todas las celdas
-      wsLogs.eachRow((row, rowNumber) => {
+      wsLogs.eachRow((row) => {
         row.eachCell((cell) => {
           cell.border = {
             top: { style: "thin", color: { argb: "FFE0E0E0" } },
@@ -278,7 +292,6 @@ export default function LogsPage() {
         });
       });
 
-      // Hoja 2: Resumen por acción
       const wsResumen = workbook.addWorksheet("Resumen por Acción");
       wsResumen.columns = [
         { header: "Acción", key: "accion", width: 25 },
@@ -302,7 +315,6 @@ export default function LogsPage() {
         });
       });
 
-      // Hoja 3: Actividad por usuario
       const wsUsuarios = workbook.addWorksheet("Actividad por Usuario");
       wsUsuarios.columns = [
         { header: "Usuario", key: "usuario", width: 25 },
@@ -325,7 +337,6 @@ export default function LogsPage() {
         });
       });
 
-      // Hoja 4: Datos de cambios (solo logs con datos)
       const logsConDatos = logsData.filter(
         (l) => l.datos_anteriores || l.datos_nuevos,
       );
@@ -365,7 +376,6 @@ export default function LogsPage() {
         });
       }
 
-      // Generar archivo
       const buffer = await workbook.xlsx.writeBuffer();
       const data = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -379,17 +389,6 @@ export default function LogsPage() {
     } finally {
       setExporting(false);
     }
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString("es-MX", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
   };
 
   const currentPage = Math.floor(pagination.offset / pagination.limit) + 1;
@@ -448,7 +447,8 @@ export default function LogsPage() {
             <div>
               <p className="text-sm text-gray-500">Período</p>
               <p className="text-sm font-medium text-gray-900">
-                {filters.fechaInicio} - {filters.fechaFin}
+                {formatDateOnly(filters.fechaInicio)} -{" "}
+                {formatDateOnly(filters.fechaFin)}
               </p>
             </div>
           </div>
@@ -816,7 +816,6 @@ export default function LogsPage() {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Header info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-xs text-gray-500 mb-1">ID</p>
@@ -832,7 +831,6 @@ export default function LogsPage() {
                 </div>
               </div>
 
-              {/* User info */}
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-xs text-gray-500 mb-1">Usuario</p>
                 <div className="flex items-center gap-2">
@@ -852,7 +850,6 @@ export default function LogsPage() {
                 </div>
               </div>
 
-              {/* Action details */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-xs text-gray-500 mb-1">Acción</p>
@@ -874,7 +871,6 @@ export default function LogsPage() {
                 </div>
               </div>
 
-              {/* Table and record */}
               {(selectedLog.tabla_afectada || selectedLog.registro_id) && (
                 <div className="grid grid-cols-2 gap-4">
                   {selectedLog.tabla_afectada && (
@@ -898,7 +894,6 @@ export default function LogsPage() {
                 </div>
               )}
 
-              {/* Description */}
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-xs text-gray-500 mb-1">Descripción</p>
                 <p className="text-sm text-gray-900">
@@ -906,7 +901,6 @@ export default function LogsPage() {
                 </p>
               </div>
 
-              {/* Technical info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selectedLog.ip_address && (
                   <div className="bg-gray-50 rounded-lg p-3">
@@ -930,7 +924,6 @@ export default function LogsPage() {
                 )}
               </div>
 
-              {/* Data changes */}
               {selectedLog.datos_anteriores && (
                 <div className="bg-red-50 rounded-lg p-3">
                   <p className="text-xs text-red-600 mb-2 font-medium">

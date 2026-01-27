@@ -13,6 +13,21 @@ import api from "../../services/api";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 
+// Helper function to format date as DD/MM/YYYY
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+// Helper function to simplify shift name (remove "Turno " prefix)
+const formatTurno = (turno) => {
+  if (!turno) return "";
+  return turno.replace(/^Turno\s*/i, "");
+};
+
 export default function DefectosPage() {
   const { user } = useAuthStore();
   const [registros, setRegistros] = useState([]);
@@ -198,7 +213,7 @@ export default function DefectosPage() {
           <p className="text-sm text-gray-500">
             Turno actual:{" "}
             <span className="font-medium text-primary">
-              {catalogos.turnoActual?.nombre || "Cargando..."}
+              {formatTurno(catalogos.turnoActual?.nombre) || "Cargando..."}
             </span>
           </p>
         </div>
@@ -246,7 +261,7 @@ export default function DefectosPage() {
               <option value="">Todos</option>
               {catalogos.turnos.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.nombre}
+                  {formatTurno(t.nombre)}
                 </option>
               ))}
             </select>
@@ -350,13 +365,11 @@ export default function DefectosPage() {
                 registros.map((registro) => (
                   <tr key={registro.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {new Date(registro.fecha_registro).toLocaleDateString(
-                        "es-MX",
-                      )}
+                      {formatDate(registro.fecha_registro)}
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        {registro.turno}
+                        {formatTurno(registro.turno)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
@@ -451,7 +464,7 @@ export default function DefectosPage() {
               </h3>
               {catalogos.turnoActual && !editingId && (
                 <span className="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full">
-                  {catalogos.turnoActual.nombre}
+                  {formatTurno(catalogos.turnoActual.nombre)}
                 </span>
               )}
             </div>

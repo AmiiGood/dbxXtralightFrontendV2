@@ -6,6 +6,21 @@ import api from "../../services/api";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 
+// Helper function to format date as DD/MM/YYYY
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+// Helper function to simplify shift name (remove "Turno " prefix)
+const formatTurno = (turno) => {
+  if (!turno) return "";
+  return turno.replace(/^Turno\s*/i, "");
+};
+
 export default function ReportesPage() {
   const [resumenTurno, setResumenTurno] = useState([]);
   const [topDefectos, setTopDefectos] = useState([]);
@@ -53,7 +68,8 @@ export default function ReportesPage() {
       // Obtener todos los registros para el período
       const params = new URLSearchParams();
       if (fechas.fechaInicio) params.append("fechaInicio", fechas.fechaInicio);
-      if (fechas.fechaFin) params.append("fechaFin", `${fechas.fechaFin}T23:59:59`);
+      if (fechas.fechaFin)
+        params.append("fechaFin", `${fechas.fechaFin}T23:59:59`);
       params.append("limit", 500);
 
       const response = await api.get(`/defectos?${params}`);
@@ -87,8 +103,8 @@ export default function ReportesPage() {
 
       registros.forEach((r) => {
         wsRegistros.addRow({
-          fecha: new Date(r.fecha_registro).toLocaleDateString("es-MX"),
-          turno: r.turno,
+          fecha: formatDate(r.fecha_registro),
+          turno: formatTurno(r.turno),
           area: r.area_produccion,
           defecto: r.tipo_defecto,
           pares: r.pares_rechazados,
@@ -116,8 +132,8 @@ export default function ReportesPage() {
 
       resumenTurno.forEach((r) => {
         wsResumen.addRow({
-          fecha: new Date(r.fecha).toLocaleDateString("es-MX"),
-          turno: r.turno,
+          fecha: formatDate(r.fecha),
+          turno: formatTurno(r.turno),
           registros: r.total_registros,
           pares: r.total_pares_rechazados,
         });
@@ -339,11 +355,11 @@ export default function ReportesPage() {
                   {resumenTurno.slice(0, 15).map((item, index) => (
                     <tr key={index}>
                       <td className="py-2 text-sm text-gray-900">
-                        {new Date(item.fecha).toLocaleDateString("es-MX")}
+                        {formatDate(item.fecha)}
                       </td>
                       <td className="py-2">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {item.turno}
+                          {formatTurno(item.turno)}
                         </span>
                       </td>
                       <td className="py-2 text-sm text-gray-500 text-right">
