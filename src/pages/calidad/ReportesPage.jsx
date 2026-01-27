@@ -6,47 +6,42 @@ import api from "../../services/api";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 
-// Helper function to format date as DD/MM/YYYY
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  const day = date.getDate().toString().padStart(2, "0");
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
-
-// Helper function to simplify shift name (remove "Turno " prefix)
-const formatTurno = (turno) => {
-  if (!turno) return "";
-  return turno.replace(/^Turno\s*/i, "");
-};
-
 export default function ReportesPage() {
   const [resumenTurno, setResumenTurno] = useState([]);
   const [topDefectos, setTopDefectos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [fechas, setFechas] = useState({
-    fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7))
-      .toISOString()
-      .split("T")[0],
-    fechaFin: new Date().toISOString().split("T23:59:59")[0],
+    fechaInicio: new Date().toISOString().split("T")[0],
+    fechaFin: "",
   });
 
   useEffect(() => {
     fetchReportes();
-  }, [fechas.fechaInicio, fechas.fechaFin]);
+  }, []);
+
+  const buildDateParams = () => {
+    const params = new URLSearchParams();
+    if (fechas.fechaInicio) {
+      params.append("fechaInicio", `${fechas.fechaInicio}T00:00:00`);
+    }
+    if (fechas.fechaFin) {
+      params.append("fechaFin", `${fechas.fechaFin}T23:59:59`);
+    } else if (fechas.fechaInicio) {
+      // Si no hay fecha fin, usar la fecha de inicio como fin (mismo día)
+      params.append("fechaFin", `${fechas.fechaInicio}T23:59:59`);
+    }
+    return params.toString();
+  };
 
   const fetchReportes = async () => {
     setLoading(true);
     try {
+      const dateParams = buildDateParams();
+
       const [resumenRes, topRes] = await Promise.all([
-        api.get(
-          `/defectos/resumen-turno?fechaInicio=${fechas.fechaInicio}&fechaFin=${fechas.fechaFin}`,
-        ),
-        api.get(
-          `/defectos/top-defectos?limit=10&fechaInicio=${fechas.fechaInicio}&fechaFin=${fechas.fechaFin}`,
-        ),
+        api.get(`/defectos/resumen-turno?${dateParams}`),
+        api.get(`/defectos/top-defectos?limit=10&${dateParams}`),
       ]);
 
       if (resumenRes.data.status === "success") {
@@ -65,12 +60,16 @@ export default function ReportesPage() {
   const exportToExcel = async () => {
     setExporting(true);
     try {
-      // Obtener todos los registros para el período
       const params = new URLSearchParams();
-      if (fechas.fechaInicio) params.append("fechaInicio", fechas.fechaInicio);
-      if (fechas.fechaFin)
+      if (fechas.fechaInicio) {
+        params.append("fechaInicio", fechas.fechaInicio);
+      }
+      if (fechas.fechaFin) {
         params.append("fechaFin", `${fechas.fechaFin}T23:59:59`);
-      params.append("limit", 500);
+      } else if (fechas.fechaInicio) {
+        params.append("fechaFin", `${fechas.fechaInicio}T23:59:59`);
+      }
+      params.append("limit", "500");
 
       const response = await api.get(`/defectos?${params}`);
       const registros = response.data.data?.registros || [];
@@ -93,18 +92,17 @@ export default function ReportesPage() {
       ];
 
       // Estilo del header
-      wsRegistros.getRow(1).font = { bold: true };
+      wsRegistros.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
       wsRegistros.getRow(1).fill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: "FF236093" },
       };
-      wsRegistros.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
 
       registros.forEach((r) => {
         wsRegistros.addRow({
-          fecha: formatDate(r.fecha_registro),
-          turno: formatTurno(r.turno),
+          fecha: new Date(r.fecha_registro).toLocaleDateString("es-MX"),
+          turno: r.turno,
           area: r.area_produccion,
           defecto: r.tipo_defecto,
           pares: r.pares_rechazados,
@@ -122,18 +120,17 @@ export default function ReportesPage() {
         { header: "Total Pares Rechazados", key: "pares", width: 22 },
       ];
 
-      wsResumen.getRow(1).font = { bold: true };
+      wsResumen.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
       wsResumen.getRow(1).fill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: "FF49A090" },
       };
-      wsResumen.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
 
       resumenTurno.forEach((r) => {
         wsResumen.addRow({
-          fecha: formatDate(r.fecha),
-          turno: formatTurno(r.turno),
+          fecha: new Date(r.fecha).toLocaleDateString("es-MX"),
+          turno: r.turno,
           registros: r.total_registros,
           pares: r.total_pares_rechazados,
         });
@@ -148,13 +145,12 @@ export default function ReportesPage() {
         { header: "Total Pares Rechazados", key: "pares", width: 22 },
       ];
 
-      wsTop.getRow(1).font = { bold: true };
+      wsTop.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
       wsTop.getRow(1).fill = {
         type: "pattern",
         pattern: "solid",
         fgColor: { argb: "FF95B849" },
       };
-      wsTop.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
 
       topDefectos.forEach((d, i) => {
         wsTop.addRow({
@@ -171,6 +167,8 @@ export default function ReportesPage() {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
 
+      const fechaInicioStr = fechas.fechaInicio || "inicio";
+      const fechaFinStr = fechas.fechaFin || fechas.fechaInicio || "fin";
       const fileName = `FPG-QA-001 Ver.03 OBA ensamble.xlsx`;
       saveAs(data, fileName);
     } catch (error) {
@@ -190,6 +188,16 @@ export default function ReportesPage() {
     1,
   );
 
+  const formatPeriodo = () => {
+    if (fechas.fechaInicio && fechas.fechaFin) {
+      return `${fechas.fechaInicio} - ${fechas.fechaFin}`;
+    }
+    if (fechas.fechaInicio) {
+      return fechas.fechaInicio;
+    }
+    return "Sin definir";
+  };
+
   return (
     <div className="space-y-6">
       {/* Filtros de fecha */}
@@ -205,7 +213,7 @@ export default function ReportesPage() {
           />
           <Input
             type="date"
-            label="Fecha Fin"
+            label="Fecha Fin (opcional)"
             value={fechas.fechaFin}
             onChange={(e) =>
               setFechas((prev) => ({ ...prev, fechaFin: e.target.value }))
@@ -219,6 +227,7 @@ export default function ReportesPage() {
             variant="secondary"
             onClick={exportToExcel}
             isLoading={exporting}
+            disabled={!fechas.fechaInicio}
           >
             <Download className="w-4 h-4 mr-2" />
             Exportar Excel
@@ -260,12 +269,12 @@ export default function ReportesPage() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
-              <BarChart3 className="w-6 h-6 text-secondary" />
+              <Calendar className="w-6 h-6 text-secondary" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Tipos de Defectos</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {topDefectos.length}
+              <p className="text-sm text-gray-500">Período</p>
+              <p className="text-sm font-medium text-gray-900">
+                {formatPeriodo()}
               </p>
             </div>
           </div>
@@ -355,11 +364,11 @@ export default function ReportesPage() {
                   {resumenTurno.slice(0, 15).map((item, index) => (
                     <tr key={index}>
                       <td className="py-2 text-sm text-gray-900">
-                        {formatDate(item.fecha)}
+                        {new Date(item.fecha).toLocaleDateString("es-MX")}
                       </td>
                       <td className="py-2">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {formatTurno(item.turno)}
+                          {item.turno}
                         </span>
                       </td>
                       <td className="py-2 text-sm text-gray-500 text-right">
