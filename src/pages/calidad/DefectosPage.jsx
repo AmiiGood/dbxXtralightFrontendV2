@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Plus,
   Search,
@@ -7,26 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Filter,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/auth.store";
 import api from "../../services/api";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
-
-// Helper function to format date as DD/MM/YYYY
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  const day = date.getDate().toString().padStart(2, "0");
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
-
-// Helper function to simplify shift name (remove "Turno " prefix)
-const formatTurno = (turno) => {
-  if (!turno) return "";
-  return turno.replace(/^Turno\s*/i, "");
-};
 
 export default function DefectosPage() {
   const { user } = useAuthStore();
@@ -55,21 +41,19 @@ export default function DefectosPage() {
     areaProduccionId: "",
     tipoDefectoId: "",
   });
+  const [appliedFilters, setAppliedFilters] = useState({
+    fechaInicio: "",
+    fechaFin: "",
+    turnoId: "",
+    areaProduccionId: "",
+    tipoDefectoId: "",
+  });
   const [pagination, setPagination] = useState({
     total: 0,
     limit: 10,
     offset: 0,
     pages: 0,
   });
-
-  useEffect(() => {
-    fetchCatalogos();
-    fetchRegistros();
-  }, []);
-
-  useEffect(() => {
-    fetchRegistros();
-  }, [pagination.offset, filters]);
 
   // Filtrar defectos para búsqueda
   const filteredDefectos = useMemo(() => {
@@ -90,29 +74,39 @@ export default function DefectosPage() {
     }
   };
 
-  const fetchRegistros = async () => {
+  const fetchRegistros = useCallback(async (currentFilters, offset = 0) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        limit: pagination.limit.toString(),
-        offset: pagination.offset.toString(),
-      });
+      const params = new URLSearchParams();
+      params.append("limit", "10");
+      params.append("offset", offset.toString());
 
-      if (filters.fechaInicio)
-        params.append("fechaInicio", filters.fechaInicio);
-      if (filters.fechaFin) params.append("fechaFin", filters.fechaFin);
-      if (filters.turnoId) params.append("turnoId", filters.turnoId);
-      if (filters.areaProduccionId)
-        params.append("areaProduccionId", filters.areaProduccionId);
-      if (filters.tipoDefectoId)
-        params.append("tipoDefectoId", filters.tipoDefectoId);
+      // Agregar filtros solo si tienen valor
+      if (currentFilters.fechaInicio) {
+        params.append("fechaInicio", currentFilters.fechaInicio);
+      }
+      if (currentFilters.fechaFin) {
+        params.append("fechaFin", currentFilters.fechaFin);
+      }
+      if (currentFilters.turnoId) {
+        params.append("turnoId", currentFilters.turnoId);
+      }
+      if (currentFilters.areaProduccionId) {
+        params.append("areaProduccionId", currentFilters.areaProduccionId);
+      }
+      if (currentFilters.tipoDefectoId) {
+        params.append("tipoDefectoId", currentFilters.tipoDefectoId);
+      }
 
-      const response = await api.get(`/defectos?${params}`);
+      console.log("Fetching with params:", params.toString());
+
+      const response = await api.get(`/defectos?${params.toString()}`);
       if (response.data.status === "success") {
         setRegistros(response.data.data.registros);
         setPagination((prev) => ({
           ...prev,
           ...response.data.data.pagination,
+          offset: offset,
         }));
       }
     } catch (error) {
@@ -120,6 +114,38 @@ export default function DefectosPage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchCatalogos();
+    fetchRegistros(appliedFilters, 0);
+  }, []);
+
+  // Función para aplicar filtros
+  const handleApplyFilters = () => {
+    console.log("Applying filters:", filters);
+    setAppliedFilters({ ...filters });
+    fetchRegistros(filters, 0);
+  };
+
+  // Función para limpiar filtros
+  const handleClearFilters = () => {
+    const emptyFilters = {
+      fechaInicio: "",
+      fechaFin: "",
+      turnoId: "",
+      areaProduccionId: "",
+      tipoDefectoId: "",
+    };
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+    fetchRegistros(emptyFilters, 0);
+  };
+
+  // Paginación
+  const handlePageChange = (newOffset) => {
+    setPagination((prev) => ({ ...prev, offset: newOffset }));
+    fetchRegistros(appliedFilters, newOffset);
   };
 
   const handleSubmit = async (e) => {
@@ -135,13 +161,12 @@ export default function DefectosPage() {
       if (editingId) {
         await api.put(`/defectos/${editingId}`, payload);
       } else {
-        // El backend obtiene el turno automáticamente si no se envía
         await api.post("/defectos", payload);
       }
 
       setShowModal(false);
       resetForm();
-      fetchRegistros();
+      fetchRegistros(appliedFilters, pagination.offset);
     } catch (error) {
       console.error("Error saving registro:", error);
       alert(error.response?.data?.message || "Error al guardar");
@@ -170,7 +195,7 @@ export default function DefectosPage() {
     if (!confirm("¿Estás seguro de eliminar este registro?")) return;
     try {
       await api.delete(`/defectos/${id}`);
-      fetchRegistros();
+      fetchRegistros(appliedFilters, pagination.offset);
     } catch (error) {
       console.error("Error deleting registro:", error);
       alert(error.response?.data?.message || "Error al eliminar");
@@ -195,12 +220,12 @@ export default function DefectosPage() {
   };
 
   const handleParesChange = (e) => {
-    // Solo permitir números
     const value = e.target.value.replace(/\D/g, "");
     setFormData((prev) => ({ ...prev, paresRechazados: value }));
   };
 
   const currentPage = Math.floor(pagination.offset / pagination.limit) + 1;
+  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
   return (
     <div className="space-y-6">
@@ -213,7 +238,7 @@ export default function DefectosPage() {
           <p className="text-sm text-gray-500">
             Turno actual:{" "}
             <span className="font-medium text-primary">
-              {formatTurno(catalogos.turnoActual?.nombre) || "Cargando..."}
+              {catalogos.turnoActual?.nombre || "Cargando..."}
             </span>
           </p>
         </div>
@@ -261,7 +286,7 @@ export default function DefectosPage() {
               <option value="">Todos</option>
               {catalogos.turnos.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {formatTurno(t.nombre)}
+                  {t.nombre}
                 </option>
               ))}
             </select>
@@ -310,6 +335,19 @@ export default function DefectosPage() {
               ))}
             </select>
           </div>
+        </div>
+        {/* Botones de filtro */}
+        <div className="flex items-center justify-end gap-3 mt-4">
+          {hasActiveFilters && (
+            <Button variant="ghost" onClick={handleClearFilters}>
+              <X className="w-4 h-4 mr-2" />
+              Limpiar
+            </Button>
+          )}
+          <Button onClick={handleApplyFilters}>
+            <Filter className="w-4 h-4 mr-2" />
+            Aplicar Filtros
+          </Button>
         </div>
       </div>
 
@@ -365,11 +403,13 @@ export default function DefectosPage() {
                 registros.map((registro) => (
                   <tr key={registro.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {formatDate(registro.fecha_registro)}
+                      {new Date(registro.fecha_registro).toLocaleDateString(
+                        "es-MX",
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        {formatTurno(registro.turno)}
+                        {registro.turno}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
@@ -420,10 +460,7 @@ export default function DefectosPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() =>
-                  setPagination((prev) => ({
-                    ...prev,
-                    offset: prev.offset - prev.limit,
-                  }))
+                  handlePageChange(pagination.offset - pagination.limit)
                 }
                 disabled={pagination.offset === 0}
                 className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -435,10 +472,7 @@ export default function DefectosPage() {
               </span>
               <button
                 onClick={() =>
-                  setPagination((prev) => ({
-                    ...prev,
-                    offset: prev.offset + prev.limit,
-                  }))
+                  handlePageChange(pagination.offset + pagination.limit)
                 }
                 disabled={currentPage >= pagination.pages}
                 className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -464,7 +498,7 @@ export default function DefectosPage() {
               </h3>
               {catalogos.turnoActual && !editingId && (
                 <span className="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full">
-                  {formatTurno(catalogos.turnoActual.nombre)}
+                  {catalogos.turnoActual.nombre}
                 </span>
               )}
             </div>
