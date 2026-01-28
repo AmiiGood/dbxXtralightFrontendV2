@@ -14,6 +14,18 @@ import {
   Monitor,
   FileText,
   Download,
+  LogIn,
+  LogOut,
+  Lock,
+  Plus,
+  Pencil,
+  Trash2,
+  Pause,
+  Play,
+  KeyRound,
+  XCircle,
+  ShieldCheck,
+  ShieldX,
 } from "lucide-react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -36,17 +48,23 @@ const accionColors = {
 };
 
 const accionIcons = {
-  LOGIN_SUCCESS: "🔓",
-  LOGIN_FAILED: "🔒",
-  LOGOUT: "🚪",
-  CREATE: "➕",
-  UPDATE: "✏️",
-  DELETE: "🗑️",
-  DEACTIVATE: "⏸️",
-  ACTIVATE: "▶️",
-  RESET_PASSWORD: "🔑",
-  CHANGE_PASSWORD: "🔐",
-  CHANGE_PASSWORD_FAILED: "❌",
+  LOGIN_SUCCESS: LogIn,
+  LOGIN_FAILED: ShieldX,
+  LOGOUT: LogOut,
+  CREATE: Plus,
+  UPDATE: Pencil,
+  DELETE: Trash2,
+  DEACTIVATE: Pause,
+  ACTIVATE: Play,
+  RESET_PASSWORD: KeyRound,
+  CHANGE_PASSWORD: ShieldCheck,
+  CHANGE_PASSWORD_FAILED: XCircle,
+};
+
+// Componente para renderizar el icono de acción
+const AccionIcon = ({ accion, className = "w-3.5 h-3.5" }) => {
+  const IconComponent = accionIcons[accion] || FileText;
+  return <IconComponent className={className} />;
 };
 
 // Helper function to format date as DD/MM/YYYY HH:mm:ss
@@ -658,12 +676,12 @@ export default function LogsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                             accionColors[log.accion] ||
                             "bg-gray-100 text-gray-700"
                           }`}
                         >
-                          <span>{accionIcons[log.accion] || "📝"}</span>
+                          <AccionIcon accion={log.accion} />
                           {log.accion}
                         </span>
                       </td>
@@ -750,11 +768,12 @@ export default function LogsPage() {
                     className="flex items-center justify-between text-sm"
                   >
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
                         accionColors[e.accion] || "bg-gray-100 text-gray-700"
                       }`}
                     >
-                      {accionIcons[e.accion] || "📝"} {e.accion}
+                      <AccionIcon accion={e.accion} className="w-3 h-3" />
+                      {e.accion}
                     </span>
                     <span className="text-gray-500">{e.total}</span>
                   </div>
@@ -854,12 +873,12 @@ export default function LogsPage() {
                 <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-xs text-gray-500 mb-1">Acción</p>
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                       accionColors[selectedLog.accion] ||
                       "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {accionIcons[selectedLog.accion] || "📝"}{" "}
+                    <AccionIcon accion={selectedLog.accion} />
                     {selectedLog.accion}
                   </span>
                 </div>
