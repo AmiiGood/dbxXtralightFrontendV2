@@ -16,6 +16,8 @@ export default function ReportesPage() {
     fechaFin: "",
   });
 
+  const formatTurno = (turno) => turno.replace("Turno ", "");
+
   useEffect(() => {
     fetchReportes();
   }, []);
@@ -101,8 +103,8 @@ export default function ReportesPage() {
 
       registros.forEach((r) => {
         wsRegistros.addRow({
-          fecha: new Date(r.fecha_registro).toLocaleDateString("es-MX"),
-          turno: r.turno,
+          fecha: formatFecha(r.fecha_registro),
+          turno: formatTurno(r.turno),
           area: r.area_produccion,
           defecto: r.tipo_defecto,
           pares: r.pares_rechazados,
@@ -129,8 +131,8 @@ export default function ReportesPage() {
 
       resumenTurno.forEach((r) => {
         wsResumen.addRow({
-          fecha: new Date(r.fecha).toLocaleDateString("es-MX"),
-          turno: r.turno,
+          fecha: formatFecha(r.fecha_registro),
+          turno: formatTurno(r.turno),
           registros: r.total_registros,
           pares: r.total_pares_rechazados,
         });
@@ -187,6 +189,14 @@ export default function ReportesPage() {
     ...topDefectos.map((d) => parseInt(d.total_pares_rechazados || 0)),
     1,
   );
+
+  const formatFecha = (fecha) => {
+    const d = new Date(fecha);
+    const dia = String(d.getDate()).padStart(2, "0");
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const anio = d.getFullYear();
+    return `${dia}/${mes}/${anio}`;
+  };
 
   const formatPeriodo = () => {
     if (fechas.fechaInicio && fechas.fechaFin) {
@@ -364,11 +374,11 @@ export default function ReportesPage() {
                   {resumenTurno.slice(0, 15).map((item, index) => (
                     <tr key={index}>
                       <td className="py-2 text-sm text-gray-900">
-                        {new Date(item.fecha).toLocaleDateString("es-MX")}
+                        {formatFecha(item.fecha)}
                       </td>
                       <td className="py-2">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {item.turno}
+                          {formatTurno(item.turno)}
                         </span>
                       </td>
                       <td className="py-2 text-sm text-gray-500 text-right">
