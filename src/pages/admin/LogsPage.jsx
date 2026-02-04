@@ -235,7 +235,9 @@ export default function LogsPage() {
       if (filters.search) params.append("search", filters.search);
 
       const response = await api.get(`/logs?${params}`);
-      const logsData = response.data.data?.logs || [];
+      const logsData = (response.data.data?.logs || []).sort(
+        (a, b) => new Date(a.creado_en) - new Date(b.creado_en),
+      );
 
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "Sistema Central";

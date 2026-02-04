@@ -74,7 +74,9 @@ export default function ReportesPage() {
       params.append("limit", "500");
 
       const response = await api.get(`/defectos?${params}`);
-      const registros = response.data.data?.registros || [];
+      const registros = (response.data.data?.registros || []).sort(
+        (a, b) => new Date(a.fecha_registro) - new Date(b.fecha_registro),
+      );
 
       // Crear workbook
       const workbook = new ExcelJS.Workbook();
