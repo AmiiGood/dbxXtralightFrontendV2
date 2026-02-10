@@ -10,7 +10,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Menu,
+  QrCode,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/auth.store";
 
@@ -21,6 +21,7 @@ const iconMap = {
   "FPG-QA-001 Ver.03 OBA ensamble": ClipboardList,
   "Reportes de Calidad": BarChart3,
   Catálogos: Settings,
+  "Validación QR": QrCode,
 };
 
 const moduleRoutes = {
@@ -30,6 +31,7 @@ const moduleRoutes = {
   "FPG-QA-001 Ver.03 OBA ensamble": "/calidad/defectos",
   "Reportes de Calidad": "/calidad/reportes",
   Catálogos: "/admin/catalogos",
+  "Validación QR": "/calidad/qr-validation",
 };
 
 export default function Sidebar({ modulos = [], loading = false, onToggle }) {
@@ -37,7 +39,6 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
-  // Notificar al padre cuando cambie el estado
   useEffect(() => {
     if (onToggle) {
       onToggle(collapsed);
@@ -58,15 +59,16 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
     ["Gestión de Usuarios", "Logs del Sistema", "Catálogos"].includes(m.nombre),
   );
   const calidadModulos = modulos.filter((m) =>
-    ["FPG-QA-001 Ver.03 OBA ensamble", "Reportes de Calidad"].includes(
-      m.nombre,
-    ),
+    [
+      "FPG-QA-001 Ver.03 OBA ensamble",
+      "Reportes de Calidad",
+      "Validación QR",
+    ].includes(m.nombre),
   );
   const dashboardModulo = modulos.find((m) => m.nombre === "Dashboard");
 
   const renderNavItem = (modulo) => {
     const Icon = iconMap[modulo.nombre] || LayoutDashboard;
-    // Usar la ruta del backend si existe, sino usar el mapeo local
     const route = modulo.ruta || moduleRoutes[modulo.nombre] || "/dashboard";
 
     return (
@@ -184,15 +186,10 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
           </div>
         ) : (
           <>
-            {/* Dashboard */}
             {dashboardModulo && (
               <div className="mb-6">{renderNavItem(dashboardModulo)}</div>
             )}
-
-            {/* Calidad */}
             {renderSection("Calidad", calidadModulos)}
-
-            {/* Administración */}
             {renderSection("Administración", adminModulos)}
           </>
         )}

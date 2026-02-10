@@ -11,6 +11,7 @@ const pageTitles = {
   "/admin/catalogos": "Catálogos",
   "/calidad/defectos": "Registro de Defectos",
   "/calidad/reportes": "Reportes de Calidad",
+  "/calidad/qr-validation": "Validación QR",
 };
 
 export default function MainLayout() {

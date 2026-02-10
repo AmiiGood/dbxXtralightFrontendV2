@@ -7,10 +7,12 @@ import {
   CheckCircle,
   TrendingUp,
   Plus,
+  QrCode,
+  Package,
+  XCircle,
 } from "lucide-react";
 import api from "../../services/api";
 
-// Helper function to simplify shift name (remove "Turno " prefix)
 const formatTurno = (turno) => {
   if (!turno) return "";
   return turno.replace(/^Turno\s*/i, "");
@@ -39,6 +41,156 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle, loading }) => (
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const isQrRole = user?.rol?.nombre === "Validación QR";
+
+  // Si es rol QR exclusivo, mostrar dashboard QR
+  if (isQrRole) {
+    return <QrDashboard user={user} />;
+  }
+
+  // Dashboard normal para otros roles
+  return <DefaultDashboard user={user} />;
+}
+
+// ============================================
+// Dashboard QR (para rol "Validación QR")
+// ============================================
+function QrDashboard({ user }) {
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchQrDashboard();
+  }, []);
+
+  const fetchQrDashboard = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get("/qr/dashboard");
+      if (response.data.status === "success") {
+        setDashboard(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching QR dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const escaneosHoy = dashboard?.escanosHoy || {};
+
+  return (
+    <div className="space-y-6">
+      {/* Welcome banner */}
+      <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 text-white">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">
+              ¡Bienvenido, {user?.nombreCompleto?.split(" ")[0]}!
+            </h2>
+            <p className="text-white/80 mt-1">
+              {new Date().toLocaleDateString("es-MX", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+            <p className="text-white/90 mt-2 text-sm">
+              Módulo de Validación QR
+            </p>
+          </div>
+          <Link
+            to="/calidad/qr-validation"
+            className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <QrCode className="w-5 h-5" />
+            <span>Escanear QR</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Escaneos Hoy"
+          value={escaneosHoy.totalEscaneos || 0}
+          icon={QrCode}
+          color="bg-primary"
+          loading={loading}
+        />
+        <StatCard
+          title="Encontrados Hoy"
+          value={escaneosHoy.encontrados || 0}
+          icon={CheckCircle}
+          color="bg-green-500"
+          loading={loading}
+        />
+        <StatCard
+          title="No Encontrados Hoy"
+          value={escaneosHoy.noEncontrados || 0}
+          icon={XCircle}
+          color="bg-red-500"
+          loading={loading}
+        />
+        <StatCard
+          title="Total Mapeos QR"
+          value={(dashboard?.totalMapeos || 0).toLocaleString()}
+          icon={Package}
+          color="bg-secondary"
+          loading={loading}
+        />
+      </div>
+
+      {/* Acciones rápidas */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Acciones Rápidas
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Link
+            to="/calidad/qr-validation"
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <QrCode className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Escanear QR</p>
+              <p className="text-sm text-gray-500">
+                Validar un código QR de producto
+              </p>
+            </div>
+          </Link>
+          <Link
+            to="/calidad/qr-validation"
+            onClick={() =>
+              setTimeout(() => {
+                /* el tab de historial se selecciona manualmente */
+              }, 100)
+            }
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+          >
+            <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-secondary" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Ver Historial</p>
+              <p className="text-sm text-gray-500">
+                Consultar escaneos realizados
+              </p>
+            </div>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// Dashboard Default (para Admin, Calidad, etc.)
+// ============================================
+function DefaultDashboard({ user }) {
   const [stats, setStats] = useState({
     registrosHoy: 0,
     paresHoy: 0,
@@ -59,7 +211,6 @@ export default function DashboardPage() {
       const fechaInicio = `${today}T00:00:00`;
       const fechaFin = `${today}T23:59:59`;
 
-      // Obtener datos del día
       const [registrosRes, topRes, catalogosRes] = await Promise.all([
         api.get(
           `/defectos?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&limit=100`,
@@ -76,7 +227,6 @@ export default function DashboardPage() {
           (sum, r) => sum + (r.pares_rechazados || 0),
           0,
         );
-
         setStats((prev) => ({
           ...prev,
           registrosHoy: registros.length,
@@ -88,10 +238,7 @@ export default function DashboardPage() {
         const top = topRes.data.data.topDefectos || [];
         setTopDefectos(top);
         if (top.length > 0) {
-          setStats((prev) => ({
-            ...prev,
-            topDefectoHoy: top[0].defecto,
-          }));
+          setStats((prev) => ({ ...prev, topDefectoHoy: top[0].defecto }));
         }
       }
 
