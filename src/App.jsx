@@ -7,6 +7,7 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import DefectosPage from "./pages/calidad/DefectosPage";
 import ReportesPage from "./pages/calidad/ReportesPage";
 import QrValidationPage from "./pages/calidad/QrValidationPage";
+import RecepcionCajasPage from "./pages/calidad/RecepcionCajasPage";
 import UsuariosPage from "./pages/admin/UsuariosPage";
 import LogsPage from "./pages/admin/LogsPage";
 import CatalogosPage from "./pages/admin/CatalogosPage";
@@ -38,6 +39,7 @@ function App() {
         <Route path="/calidad/defectos" element={<DefectosPage />} />
         <Route path="/calidad/reportes" element={<ReportesPage />} />
         <Route path="/calidad/qr-validation" element={<QrValidationPage />} />
+        <Route path="/calidad/recepcion-cajas" element={<RecepcionCajasPage />} />
 
         {/* Admin */}
         <Route

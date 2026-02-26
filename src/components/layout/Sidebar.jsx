@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   QrCode,
+  PackageCheck,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/auth.store";
 
@@ -22,6 +23,7 @@ const iconMap = {
   "Reportes de Calidad": BarChart3,
   Catálogos: Settings,
   "Validación QR": QrCode,
+  "Recepción Cajas": PackageCheck,
 };
 
 const moduleRoutes = {
@@ -32,6 +34,7 @@ const moduleRoutes = {
   "Reportes de Calidad": "/calidad/reportes",
   Catálogos: "/admin/catalogos",
   "Validación QR": "/calidad/qr-validation",
+  "Recepción Cajas": "/calidad/recepcion-cajas",
 };
 
 export default function Sidebar({ modulos = [], loading = false, onToggle }) {
@@ -40,21 +43,14 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (onToggle) {
-      onToggle(collapsed);
-    }
+    if (onToggle) onToggle(collapsed);
   }, [collapsed, onToggle]);
-
-  const handleToggle = () => {
-    setCollapsed(!collapsed);
-  };
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  // Agrupar módulos por categoría
   const adminModulos = modulos.filter((m) =>
     ["Gestión de Usuarios", "Logs del Sistema", "Catálogos"].includes(m.nombre),
   );
@@ -63,6 +59,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
       "FPG-QA-001 Ver.03 OBA ensamble",
       "Reportes de Calidad",
       "Validación QR",
+      "Recepción Cajas",
     ].includes(m.nombre),
   );
   const dashboardModulo = modulos.find((m) => m.nombre === "Dashboard");
@@ -77,11 +74,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
         to={route}
         className={({ isActive }) => `
           flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
-          ${
-            isActive
-              ? "bg-primary text-white shadow-md"
-              : "text-gray-600 hover:bg-gray-100"
-          }
+          ${isActive ? "bg-primary text-white shadow-md" : "text-gray-600 hover:bg-gray-100"}
           ${collapsed ? "justify-center" : ""}
         `}
         title={collapsed ? modulo.nombre : ""}
@@ -96,7 +89,6 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
 
   const renderSection = (title, items) => {
     if (items.length === 0) return null;
-
     return (
       <div className="mb-6">
         {!collapsed && (
@@ -111,11 +103,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
 
   return (
     <aside
-      className={`
-        fixed left-0 top-0 h-screen bg-white border-r border-gray-200 
-        flex flex-col transition-all duration-300 z-40
-        ${collapsed ? "w-20" : "w-64"}
-      `}
+      className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-40 ${collapsed ? "w-20" : "w-64"}`}
     >
       {/* Header */}
       <div
@@ -161,9 +149,9 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
         )}
       </div>
 
-      {/* Toggle button */}
+      {/* Toggle */}
       <button
-        onClick={handleToggle}
+        onClick={() => setCollapsed(!collapsed)}
         className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow"
       >
         {collapsed ? (
@@ -195,7 +183,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
         )}
       </div>
 
-      {/* User info & Logout */}
+      {/* User & Logout */}
       <div className="p-4 border-t border-gray-200">
         {!collapsed && (
           <div className="mb-3 px-3">
@@ -207,11 +195,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
         )}
         <button
           onClick={handleLogout}
-          className={`
-            w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
-            text-red-600 hover:bg-red-50 transition-colors
-            ${collapsed ? "justify-center" : ""}
-          `}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors ${collapsed ? "justify-center" : ""}`}
           title={collapsed ? "Cerrar sesión" : ""}
         >
           <LogOut className="w-5 h-5" />
