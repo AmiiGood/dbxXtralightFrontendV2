@@ -63,27 +63,40 @@ function ScanInput({ onScan, loading, placeholder }) {
   const [value, setValue] = useState("");
   const ref = useRef(null);
   const timerRef = useRef(null);
+  const prevLoading = useRef(loading);
 
-  // Focus inicial y re-focus si se pierde
+  // Focus inicial
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  // Re-focus cuando loading pase de true a false (API respondió)
   useEffect(() => {
-    ref.current?.focus();
-    const onFocusLost = () => setTimeout(() => ref.current?.focus(), 100);
+    if (prevLoading.current && !loading) {
+      ref.current?.focus();
+    }
+    prevLoading.current = loading;
+  }, [loading]);
+
+  // Re-focus al hacer click en la página, salvo que el click haya sido en el input mismo
+  useEffect(() => {
+    const onFocusLost = (e) => {
+      if (!loading && ref.current && !ref.current.contains(e.target)) {
+        ref.current.focus();
+      }
+    };
     document.addEventListener("click", onFocusLost);
     return () => document.removeEventListener("click", onFocusLost);
-  }, []);
+  }, [loading]);
 
   const submit = (val) => {
     const v = (val ?? value).trim();
     if (!v || loading) return;
     onScan(v);
     setValue("");
-    setTimeout(() => ref.current?.focus(), 80);
   };
 
   const handleChange = (e) => {
     const v = e.target.value;
     setValue(v);
-    // Auto-enviar 80ms después de que el escáner deje de escribir
     clearTimeout(timerRef.current);
     if (v.trim()) {
       timerRef.current = setTimeout(() => submit(v), 80);
