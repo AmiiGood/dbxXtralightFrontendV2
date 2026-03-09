@@ -481,199 +481,96 @@ const useScanSounds = () => {
 // TabEscanear actualizado con cámara y manual
 // ============================================
 function TabEscanear() {
-  const [mode, setMode] = useState("camera"); // "camera" | "manual"
   const [qrInput, setQrInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [error, setError] = useState(null);
-  const [lastScannedCode, setLastScannedCode] = useState("");
   const inputRef = useRef(null);
-  const { playSuccess, playError, playBeep } = useScanSounds();
 
   useEffect(() => {
-    if (mode === "manual") {
-      inputRef.current?.focus();
-    }
-  }, [mode]);
+    inputRef.current?.focus();
+  }, []);
 
-  const handleScan = useCallback(
-    async (code) => {
-      const value = code || qrInput;
-      if (!value.trim()) return;
-
-      // Beep inmediato al detectar un QR
-      playBeep();
-
-      setLoading(true);
-      setError(null);
-      setResultado(null);
-      setLastScannedCode(value.trim());
-
-      try {
-        const response = await api.post("/qr/escanear", {
-          qrCode: value.trim(),
-        });
-        if (response.data.status === "success") {
-          const escaneo = response.data.data.escaneo;
-          setResultado(escaneo);
-
-          // Sonido según resultado
-          if (escaneo.productoEncontrado) {
-            playSuccess();
-          } else {
-            playError();
-          }
-        }
-      } catch (err) {
-        setError(
-          err.response?.data?.message || "Error al procesar el código QR",
-        );
-        playError();
-      } finally {
-        setLoading(false);
-        setQrInput("");
-        if (mode === "manual") {
-          setTimeout(() => inputRef.current?.focus(), 100);
-        }
+  const handleScan = async () => {
+    if (!qrInput.trim()) return;
+    setLoading(true);
+    setError(null);
+    setResultado(null);
+    try {
+      const response = await api.post("/qr/escanear", {
+        qrCode: qrInput.trim(),
+      });
+      if (response.data.status === "success") {
+        setResultado(response.data.data.escaneo);
       }
-    },
-    [qrInput, mode, playBeep, playSuccess, playError],
-  );
-
-  const handleCameraScan = useCallback(
-    (qrText) => {
-      // Solo enviar el texto, no abrir ningún link
-      handleScan(qrText);
-    },
-    [handleScan],
-  );
+    } catch (err) {
+      setError(err.response?.data?.message || "Error al procesar el código QR");
+    } finally {
+      setLoading(false);
+      setQrInput("");
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
 
   const handleClear = () => {
     setResultado(null);
     setError(null);
     setQrInput("");
-    setLastScannedCode("");
-    if (mode === "manual") {
-      inputRef.current?.focus();
-    }
+    inputRef.current?.focus();
   };
 
   return (
     <div className="space-y-6">
-      {/* Header con selector de modo */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <QrCode className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Escanear Código QR
-              </h3>
-              <p className="text-sm text-gray-500">
-                Usa la cámara o ingresa el código manualmente
-              </p>
-            </div>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <QrCode className="w-5 h-5 text-primary" />
           </div>
-
-          {/* Toggle de modo */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setMode("camera")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                mode === "camera"
-                  ? "bg-white text-primary shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Camera className="w-4 h-4" />
-              Cámara
-            </button>
-            <button
-              onClick={() => setMode("manual")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                mode === "manual"
-                  ? "bg-white text-primary shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <Keyboard className="w-4 h-4" />
-              Manual / Escáner
-            </button>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Escanear Código QR
+            </h3>
+            <p className="text-sm text-gray-500">
+              Usa el escáner o ingresa el código manualmente
+            </p>
           </div>
         </div>
 
-        {/* Modo Cámara */}
-        {mode === "camera" && (
-          <QrCameraScanner
-            onScan={handleCameraScan}
-            onError={(err) => setError(err)}
-            scanning={loading}
-          />
-        )}
-
-        {/* Modo Manual / Escáner USB */}
-        {mode === "manual" && (
-          <>
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  className="w-full pl-11 pr-4 py-3 rounded-lg border-2 border-primary/30 bg-primary/5 text-gray-900 text-lg focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder-gray-400"
-                  placeholder="Esperando lectura del escáner..."
-                  value={qrInput}
-                  onChange={(e) => setQrInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleScan();
-                    }
-                  }}
-                  autoFocus
-                />
-              </div>
-              <Button
-                onClick={() => handleScan()}
-                isLoading={loading}
-                className="px-6"
-              >
-                <Zap className="w-5 h-5 mr-2" />
-                Validar
-              </Button>
-              {(resultado || error) && (
-                <Button variant="ghost" onClick={handleClear}>
-                  <X className="w-5 h-5" />
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-gray-400 mt-2">
-              El campo acepta lectura directa del escáner (presiona Enter
-              automáticamente) o entrada manual
-            </p>
-          </>
-        )}
-
-        {/* Último código escaneado (solo en modo cámara) */}
-        {mode === "camera" && lastScannedCode && (
-          <div className="mt-4 flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2">
-            <span className="text-xs text-gray-500">Último código:</span>
-            <span className="text-sm font-mono text-gray-900 break-all">
-              {lastScannedCode}
-            </span>
-            <button
-              onClick={handleClear}
-              className="ml-auto p-1 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        <div className="flex gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              ref={inputRef}
+              type="text"
+              className="w-full pl-11 pr-4 py-3 rounded-lg border-2 border-primary/30 bg-primary/5 text-gray-900 text-lg focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder-gray-400"
+              placeholder="Esperando lectura del escáner..."
+              value={qrInput}
+              onChange={(e) => setQrInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleScan();
+                }
+              }}
+              autoFocus
+            />
           </div>
-        )}
+          <Button onClick={handleScan} isLoading={loading} className="px-6">
+            <Search className="w-5 h-5 mr-2" />
+            Validar
+          </Button>
+          {(resultado || error) && (
+            <Button variant="ghost" onClick={handleClear}>
+              <X className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          El campo acepta lectura directa del escáner (presiona Enter
+          automáticamente) o entrada manual
+        </p>
       </div>
 
-      {/* Loading */}
       {loading && (
         <div className="bg-white rounded-xl shadow-sm p-12 border border-gray-100 text-center">
           <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-3" />
@@ -681,7 +578,6 @@ function TabEscanear() {
         </div>
       )}
 
-      {/* Error */}
       {error && !loading && (
         <div className="bg-red-50 rounded-xl p-6 border border-red-200">
           <div className="flex items-center gap-3">
@@ -696,17 +592,10 @@ function TabEscanear() {
         </div>
       )}
 
-      {/* Resultado */}
       {resultado && !loading && (
         <div className="space-y-4">
           <div
-            className={`rounded-xl p-4 border ${
-              resultado.productoEncontrado
-                ? "bg-green-50 border-green-200"
-                : resultado.qrEncontrado
-                  ? "bg-yellow-50 border-yellow-200"
-                  : "bg-red-50 border-red-200"
-            }`}
+            className={`rounded-xl p-4 border ${resultado.productoEncontrado ? "bg-green-50 border-green-200" : resultado.qrEncontrado ? "bg-yellow-50 border-yellow-200" : "bg-red-50 border-red-200"}`}
           >
             <div className="flex items-center gap-3">
               {resultado.productoEncontrado ? (
@@ -718,13 +607,7 @@ function TabEscanear() {
               )}
               <div>
                 <h4
-                  className={`font-semibold ${
-                    resultado.productoEncontrado
-                      ? "text-green-900"
-                      : resultado.qrEncontrado
-                        ? "text-yellow-900"
-                        : "text-red-900"
-                  }`}
+                  className={`font-semibold ${resultado.productoEncontrado ? "text-green-900" : resultado.qrEncontrado ? "text-yellow-900" : "text-red-900"}`}
                 >
                   {resultado.productoEncontrado
                     ? "✅ Producto Encontrado"
@@ -733,13 +616,7 @@ function TabEscanear() {
                       : "❌ QR no registrado en el sistema"}
                 </h4>
                 <p
-                  className={`text-sm mt-0.5 ${
-                    resultado.productoEncontrado
-                      ? "text-green-700"
-                      : resultado.qrEncontrado
-                        ? "text-yellow-700"
-                        : "text-red-700"
-                  }`}
+                  className={`text-sm mt-0.5 ${resultado.productoEncontrado ? "text-green-700" : resultado.qrEncontrado ? "text-yellow-700" : "text-red-700"}`}
                 >
                   QR: {resultado.qrNormalizado}
                   {resultado.upc && ` → UPC: ${resultado.upc}`}
