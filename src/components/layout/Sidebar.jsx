@@ -12,6 +12,7 @@ import {
   ChevronRight,
   QrCode,
   PackageCheck,
+  Factory,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/auth.store";
 
@@ -24,6 +25,7 @@ const iconMap = {
   Catálogos: Settings,
   "Validación QR": QrCode,
   "Recepción Cajas": PackageCheck,
+  Ensamble: Factory,
 };
 
 const moduleRoutes = {
@@ -35,6 +37,7 @@ const moduleRoutes = {
   Catálogos: "/admin/catalogos",
   "Validación QR": "/calidad/qr-validation",
   "Recepción Cajas": "/calidad/recepcion-cajas",
+  Ensamble: "/calidad/ensamble",
 };
 
 export default function Sidebar({ modulos = [], loading = false, onToggle }) {
@@ -57,6 +60,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
   const calidadModulos = modulos.filter((m) =>
     [
       "FPG-QA-001 Ver.03 OBA ensamble",
+      "Ensamble",
       "Reportes de Calidad",
       "Validación QR",
       "Recepción Cajas",
@@ -124,9 +128,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
               <span className="text-white font-bold text-sm">FC</span>
             </div>
             <div>
-              <h1 className="font-bold text-gray-900 text-sm">
-                Sistema Central
-              </h1>
+              <h1 className="font-bold text-gray-900 text-sm">Sistema Central</h1>
               <p className="text-xs text-gray-500">Foam Creations</p>
             </div>
           </div>
@@ -166,10 +168,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-10 bg-gray-100 rounded-lg animate-pulse"
-              />
+              <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
             ))}
           </div>
         ) : (
@@ -187,9 +186,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
       <div className="p-4 border-t border-gray-200">
         {!collapsed && (
           <div className="mb-3 px-3">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {user?.nombreCompleto}
-            </p>
+            <p className="text-sm font-medium text-gray-900 truncate">{user?.nombreCompleto}</p>
             <p className="text-xs text-gray-500">{user?.rol?.nombre}</p>
           </div>
         )}
@@ -199,9 +196,7 @@ export default function Sidebar({ modulos = [], loading = false, onToggle }) {
           title={collapsed ? "Cerrar sesión" : ""}
         >
           <LogOut className="w-5 h-5" />
-          {!collapsed && (
-            <span className="text-sm font-medium">Cerrar sesión</span>
-          )}
+          {!collapsed && <span className="text-sm font-medium">Cerrar sesión</span>}
         </button>
       </div>
     </aside>

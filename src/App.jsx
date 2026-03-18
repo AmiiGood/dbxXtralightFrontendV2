@@ -5,6 +5,7 @@ import MainLayout from "./components/layout/MainLayout";
 import LoginPage from "./pages/auth/LoginPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import DefectosPage from "./pages/calidad/DefectosPage";
+import EnsamblePage from "./pages/calidad/EnsamblePage";
 import ReportesPage from "./pages/calidad/ReportesPage";
 import QrValidationPage from "./pages/calidad/QrValidationPage";
 import RecepcionCajasPage from "./pages/calidad/RecepcionCajasPage";
@@ -17,15 +18,11 @@ function App() {
 
   return (
     <Routes>
-      {/* Rutas públicas */}
       <Route
         path="/login"
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
-        }
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
 
-      {/* Rutas protegidas con layout */}
       <Route
         element={
           <ProtectedRoute>
@@ -37,6 +34,7 @@ function App() {
 
         {/* Calidad */}
         <Route path="/calidad/defectos" element={<DefectosPage />} />
+        <Route path="/calidad/ensamble" element={<EnsamblePage />} />
         <Route path="/calidad/reportes" element={<ReportesPage />} />
         <Route path="/calidad/qr-validation" element={<QrValidationPage />} />
         <Route path="/calidad/recepcion-cajas" element={<RecepcionCajasPage />} />
@@ -68,25 +66,19 @@ function App() {
         />
       </Route>
 
-      {/* Página no autorizado */}
       <Route
         path="/unauthorized"
         element={
           <div className="min-h-screen flex items-center justify-center bg-gray-50">
             <div className="text-center">
               <h1 className="text-4xl font-bold text-gray-900 mb-2">403</h1>
-              <p className="text-gray-500 mb-4">
-                No tienes permisos para acceder a esta página
-              </p>
-              <a href="/dashboard" className="text-primary hover:underline">
-                Volver al inicio
-              </a>
+              <p className="text-gray-500 mb-4">No tienes permisos para acceder a esta página</p>
+              <a href="/dashboard" className="text-primary hover:underline">Volver al inicio</a>
             </div>
           </div>
         }
       />
 
-      {/* Redirección por defecto */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

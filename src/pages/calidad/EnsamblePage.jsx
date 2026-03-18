@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus,
-  Search,
   Edit2,
   Trash2,
   ChevronLeft,
@@ -9,6 +8,7 @@ import {
   X,
   Filter,
   CheckCircle,
+  Search,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/auth.store";
 import api from "../../services/api";
@@ -16,27 +16,34 @@ import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 
 const emptyForm = {
+  turnoId: "",
   areaProduccionId: "",
-  tipoDefectoId: "",
   sku: "",
-  paresRechazados: "",
-  observaciones: "",
+  skuLabel: "",
+  paresProducidos: "",
+  fechaProduccion: new Date().toISOString().split("T")[0],
 };
 
-export default function DefectosPage() {
+const emptyFilters = {
+  fechaInicio: "",
+  fechaFin: "",
+  turnoId: "",
+  areaProduccionId: "",
+  sku: "",
+};
+
+export default function EnsamblePage() {
   const { user } = useAuthStore();
   const [registros, setRegistros] = useState([]);
-  const [catalogos, setCatalogos] = useState({
-    turnos: [], areasProduccion: [], tiposDefectos: [], turnoActual: null,
-  });
+  const [catalogos, setCatalogos] = useState({ turnos: [], areasProduccion: [] });
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
-
-  // Defecto search (lista local)
-  const [defectoSearch, setDefectoSearch] = useState("");
-  const [showDefectoDropdown, setShowDefectoDropdown] = useState(false);
+  const [filters, setFilters] = useState(emptyFilters);
+  const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
+  const [pagination, setPagination] = useState({ total: 0, limit: 10, offset: 0, pages: 0 });
+  const [error, setError] = useState("");
 
   // SKU autocomplete
   const [skuSearch, setSkuSearch] = useState("");
@@ -46,26 +53,18 @@ export default function DefectosPage() {
   const [skuConfirmed, setSkuConfirmed] = useState(false);
   const skuRef = useRef(null);
 
-  const [filters, setFilters] = useState({
-    fechaInicio: "", fechaFin: "", turnoId: "", areaProduccionId: "", tipoDefectoId: "",
-  });
-  const [appliedFilters, setAppliedFilters] = useState({
-    fechaInicio: "", fechaFin: "", turnoId: "", areaProduccionId: "", tipoDefectoId: "",
-  });
-  const [pagination, setPagination] = useState({ total: 0, limit: 10, offset: 0, pages: 0 });
-
-  const filteredDefectos = useMemo(() => {
-    if (!defectoSearch.trim()) return catalogos.tiposDefectos;
-    return catalogos.tiposDefectos.filter((d) =>
-      d.nombre.toLowerCase().includes(defectoSearch.toLowerCase())
-    );
-  }, [catalogos.tiposDefectos, defectoSearch]);
-
   const fetchCatalogos = async () => {
     try {
       const res = await api.get("/defectos/catalogos");
-      if (res.data.status === "success") setCatalogos(res.data.data);
-    } catch (e) { console.error(e); }
+      if (res.data.status === "success") {
+        setCatalogos({
+          turnos: res.data.data.turnos,
+          areasProduccion: res.data.data.areasProduccion,
+        });
+      }
+    } catch (e) {
+      console.error("Error cargando catálogos:", e);
+    }
   };
 
   const fetchRegistros = useCallback(async (currentFilters, offset = 0) => {
@@ -78,45 +77,57 @@ export default function DefectosPage() {
       if (currentFilters.fechaFin)         params.append("fechaFin", currentFilters.fechaFin);
       if (currentFilters.turnoId)          params.append("turnoId", currentFilters.turnoId);
       if (currentFilters.areaProduccionId) params.append("areaProduccionId", currentFilters.areaProduccionId);
-      if (currentFilters.tipoDefectoId)    params.append("tipoDefectoId", currentFilters.tipoDefectoId);
+      if (currentFilters.sku)              params.append("sku", currentFilters.sku);
 
-      const res = await api.get(`/defectos?${params.toString()}`);
+      const res = await api.get(`/ensamble?${params.toString()}`);
       if (res.data.status === "success") {
         setRegistros(res.data.data.registros);
         setPagination((prev) => ({ ...prev, ...res.data.data.pagination, offset }));
       }
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.error("Error cargando registros:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     fetchCatalogos();
-    fetchRegistros(appliedFilters, 0);
+    fetchRegistros(emptyFilters, 0);
   }, []);
 
-  // SKU debounce
+  // Debounce búsqueda parcial para autocomplete
   useEffect(() => {
     if (!skuSearch.trim() || skuSearch.length < 2) {
-      setSkuResults([]); setShowSkuDropdown(false); return;
+      setSkuResults([]);
+      setShowSkuDropdown(false);
+      return;
     }
     if (skuConfirmed) return;
 
     const timer = setTimeout(async () => {
       setSkuLoading(true);
       try {
+        // ?q= → búsqueda parcial, retorna { productos: [...] }
         const res = await api.get(`/ensamble/buscar-sku?q=${encodeURIComponent(skuSearch)}`);
-        setSkuResults(res.data?.data?.productos || []);
+        const productos = res.data?.data?.productos || [];
+        setSkuResults(productos);
         setShowSkuDropdown(true);
-      } catch { setSkuResults([]); }
-      finally { setSkuLoading(false); }
+      } catch {
+        setSkuResults([]);
+      } finally {
+        setSkuLoading(false);
+      }
     }, 300);
     return () => clearTimeout(timer);
   }, [skuSearch, skuConfirmed]);
 
-  // Cerrar SKU dropdown al click fuera
+  // Cerrar dropdown al click fuera
   useEffect(() => {
     const handler = (e) => {
-      if (skuRef.current && !skuRef.current.contains(e.target)) setShowSkuDropdown(false);
+      if (skuRef.current && !skuRef.current.contains(e.target)) {
+        setShowSkuDropdown(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -134,7 +145,10 @@ export default function DefectosPage() {
 
   const handleClearSku = () => {
     setFormData((p) => ({ ...p, sku: "" }));
-    setSkuSearch(""); setSkuConfirmed(false); setSkuResults([]); setShowSkuDropdown(false);
+    setSkuSearch("");
+    setSkuConfirmed(false);
+    setSkuResults([]);
+    setShowSkuDropdown(false);
   };
 
   const handleApplyFilters = () => {
@@ -143,8 +157,9 @@ export default function DefectosPage() {
   };
 
   const handleClearFilters = () => {
-    const empty = { fechaInicio: "", fechaFin: "", turnoId: "", areaProduccionId: "", tipoDefectoId: "" };
-    setFilters(empty); setAppliedFilters(empty); fetchRegistros(empty, 0);
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+    fetchRegistros(emptyFilters, 0);
   };
 
   const handlePageChange = (newOffset) => {
@@ -154,82 +169,84 @@ export default function DefectosPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       const payload = {
+        turnoId: parseInt(formData.turnoId),
         areaProduccionId: parseInt(formData.areaProduccionId),
-        tipoDefectoId: parseInt(formData.tipoDefectoId),
-        paresRechazados: parseInt(formData.paresRechazados),
-        observaciones: formData.observaciones || undefined,
-        sku: formData.sku || undefined,
+        sku: formData.sku.trim().toUpperCase(),
+        paresProducidos: parseInt(formData.paresProducidos),
+        fechaProduccion: formData.fechaProduccion,
       };
+
       if (editingId) {
-        await api.put(`/defectos/${editingId}`, payload);
+        await api.put(`/ensamble/${editingId}`, payload);
       } else {
-        await api.post("/defectos", payload);
+        await api.post("/ensamble", payload);
       }
+
       setShowModal(false);
       resetForm();
       fetchRegistros(appliedFilters, pagination.offset);
-    } catch (error) {
-      alert(error.response?.data?.message || "Error al guardar");
+    } catch (e) {
+      setError(e.response?.data?.message || "Error al guardar");
     }
   };
 
   const handleEdit = (registro) => {
     setEditingId(registro.id);
-    const defecto = catalogos.tiposDefectos.find((d) => d.nombre === registro.tipo_defecto);
-    const skuLabel = registro.sku
-      ? `${registro.sku}${registro.style_name ? ` — ${registro.style_name}` : ""}`
-      : "";
+    const skuLabel = registro.style_name
+      ? `${registro.sku} — ${registro.style_name}${registro.color ? ` · ${registro.color}` : ""}${registro.size ? ` · T${registro.size}` : ""}`
+      : registro.sku;
     setFormData({
-      areaProduccionId: catalogos.areasProduccion.find((a) => a.nombre === registro.area_produccion)?.id?.toString() || "",
-      tipoDefectoId: defecto?.id?.toString() || "",
+      turnoId: registro.turno_id?.toString() || "",
+      areaProduccionId: registro.area_produccion_id?.toString() || "",
       sku: registro.sku || "",
-      paresRechazados: registro.pares_rechazados?.toString() || "",
-      observaciones: registro.observaciones || "",
+      skuLabel,
+      paresProducidos: registro.pares_producidos?.toString() || "",
+      fechaProduccion: registro.fecha_produccion?.split("T")[0] || new Date().toISOString().split("T")[0],
     });
-    setDefectoSearch(registro.tipo_defecto || "");
     setSkuSearch(skuLabel);
-    setSkuConfirmed(!!registro.sku);
+    setSkuConfirmed(true);
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("¿Estás seguro de eliminar este registro?")) return;
+    if (!confirm("¿Eliminar este registro de producción?")) return;
     try {
-      await api.delete(`/defectos/${id}`);
+      await api.delete(`/ensamble/${id}`);
       fetchRegistros(appliedFilters, pagination.offset);
-    } catch (error) {
-      alert(error.response?.data?.message || "Error al eliminar");
+    } catch (e) {
+      alert(e.response?.data?.message || "Error al eliminar");
     }
   };
 
   const resetForm = () => {
     setFormData(emptyForm);
-    setDefectoSearch("");
-    setSkuSearch(""); setSkuConfirmed(false); setSkuResults([]);
+    setSkuSearch("");
+    setSkuConfirmed(false);
+    setSkuResults([]);
     setEditingId(null);
+    setError("");
   };
 
-  const handleSelectDefecto = (defecto) => {
-    setFormData((prev) => ({ ...prev, tipoDefectoId: defecto.id.toString() }));
-    setDefectoSearch(defecto.nombre);
-    setShowDefectoDropdown(false);
-  };
-
-  const currentPage = Math.floor(pagination.offset / pagination.limit) + 1;
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
+  const currentPage = Math.floor(pagination.offset / pagination.limit) + 1;
+
+  const getParesColor = (buenos, producidos) => {
+    if (!producidos) return "";
+    const pct = buenos / producidos;
+    if (pct >= 0.95) return "text-green-600";
+    if (pct >= 0.85) return "text-yellow-600";
+    return "text-red-600";
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Registros de Defectos</h2>
-          <p className="text-sm text-gray-500">
-            Turno actual:{" "}
-            <span className="font-medium text-primary">{catalogos.turnoActual?.nombre || "Cargando..."}</span>
-          </p>
+          <h2 className="text-lg font-semibold text-gray-900">Producción Ensamble</h2>
+          <p className="text-sm text-gray-500">Registro de pares producidos por SKU</p>
         </div>
         <Button onClick={() => { resetForm(); setShowModal(true); }}>
           <Plus className="w-4 h-4 mr-2" />
@@ -260,14 +277,8 @@ export default function DefectosPage() {
               {catalogos.areasProduccion.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Defecto</label>
-            <select className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
-              value={filters.tipoDefectoId} onChange={(e) => setFilters((p) => ({ ...p, tipoDefectoId: e.target.value }))}>
-              <option value="">Todos</option>
-              {catalogos.tiposDefectos.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-            </select>
-          </div>
+          <Input label="SKU" placeholder="Buscar por SKU" value={filters.sku}
+            onChange={(e) => setFilters((p) => ({ ...p, sku: e.target.value }))} />
         </div>
         <div className="flex items-center justify-end gap-3 mt-4">
           {hasActiveFilters && (
@@ -287,43 +298,47 @@ export default function DefectosPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {["Fecha", "Turno", "Área", "SKU", "Defecto", "Pares", "Registrado por", "Acciones"].map((h, i) => (
-                  <th key={i} className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase ${i === 7 ? "text-right" : "text-left"}`}>{h}</th>
+                {["Fecha Prod.", "Turno", "Área", "SKU", "Producto", "Producidos", "Defectivos", "Buenos", "Registrado por", "Acciones"].map((h, i) => (
+                  <th key={i} className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase ${i >= 5 && i <= 7 ? "text-center" : i === 9 ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">Cargando...</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">Cargando...</td></tr>
               ) : registros.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No hay registros</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">No hay registros</td></tr>
               ) : (
-                registros.map((registro) => (
-                  <tr key={registro.id} className="hover:bg-gray-50">
+                registros.map((r) => (
+                  <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {new Date(registro.fecha_registro).toLocaleDateString("es-MX")}
+                      {new Date(r.fecha_produccion).toLocaleDateString("es-MX", { timeZone: "UTC" })}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                        {registro.turno}
-                      </span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">{r.turno}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{registro.area_produccion}</td>
-                    <td className="px-4 py-3 text-sm font-mono text-gray-500">
-                      {registro.sku || <span className="text-gray-300">—</span>}
+                    <td className="px-4 py-3 text-sm text-gray-900">{r.area_produccion}</td>
+                    <td className="px-4 py-3 text-sm font-mono font-medium text-gray-900">{r.sku}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {r.style_name
+                        ? `${r.style_name}${r.color ? ` · ${r.color}` : ""}${r.size ? ` · T${r.size}` : ""}`
+                        : <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{registro.tipo_defecto}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{registro.pares_rechazados}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{registro.registrado_por_nombre}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-center">{r.pares_producidos}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-center">
+                      <span className={r.pares_defectivos > 0 ? "text-red-600" : "text-gray-400"}>{r.pares_defectivos}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-center">
+                      <span className={getParesColor(r.pares_buenos, r.pares_producidos)}>{r.pares_buenos}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{r.registrado_por_nombre}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleEdit(registro)}
-                          className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                        <button onClick={() => handleEdit(r)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                           <Edit2 className="w-4 h-4" />
                         </button>
                         {user?.rol?.esAdmin && (
-                          <button onClick={() => handleDelete(registro.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                          <button onClick={() => handleDelete(r.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
@@ -339,8 +354,7 @@ export default function DefectosPage() {
         {pagination.pages > 1 && (
           <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
             <p className="text-sm text-gray-500">
-              Mostrando {pagination.offset + 1} a{" "}
-              {Math.min(pagination.offset + pagination.limit, pagination.total)} de {pagination.total}
+              Mostrando {pagination.offset + 1} a {Math.min(pagination.offset + pagination.limit, pagination.total)} de {pagination.total}
             </p>
             <div className="flex items-center gap-2">
               <button onClick={() => handlePageChange(pagination.offset - pagination.limit)}
@@ -364,35 +378,44 @@ export default function DefectosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">
-                {editingId ? "Editar Registro" : "Nuevo Registro de Defecto"}
+                {editingId ? "Editar Producción" : "Registrar Producción"}
               </h3>
-              {catalogos.turnoActual && !editingId && (
-                <span className="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full">
-                  {catalogos.turnoActual.nombre}
-                </span>
-              )}
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Área */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Área de Producción</label>
-                <select required
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  value={formData.areaProduccionId}
-                  onChange={(e) => setFormData((p) => ({ ...p, areaProduccionId: e.target.value }))}>
-                  <option value="">Seleccionar área</option>
-                  {catalogos.areasProduccion.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-                </select>
+              <Input type="date" label="Fecha de Producción" required
+                value={formData.fechaProduccion}
+                onChange={(e) => setFormData((p) => ({ ...p, fechaProduccion: e.target.value }))} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Turno</label>
+                  <select required
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    value={formData.turnoId} onChange={(e) => setFormData((p) => ({ ...p, turnoId: e.target.value }))}>
+                    <option value="">Seleccionar</option>
+                    {catalogos.turnos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Área</label>
+                  <select required
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    value={formData.areaProduccionId} onChange={(e) => setFormData((p) => ({ ...p, areaProduccionId: e.target.value }))}>
+                    <option value="">Seleccionar</option>
+                    {catalogos.areasProduccion.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                  </select>
+                </div>
               </div>
 
-              {/* SKU autocomplete (opcional) */}
+              {/* SKU Autocomplete */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  SKU <span className="text-gray-400 font-normal">(opcional)</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">SKU</label>
                 <div className="relative" ref={skuRef}>
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   <input
@@ -420,7 +443,7 @@ export default function DefectosPage() {
                   </div>
 
                   {showSkuDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
                       {skuLoading ? (
                         <div className="px-4 py-3 text-sm text-gray-400">Buscando...</div>
                       ) : skuResults.length === 0 ? (
@@ -428,7 +451,7 @@ export default function DefectosPage() {
                       ) : (
                         skuResults.map((producto) => (
                           <button key={producto.sku} type="button"
-                            className="w-full text-left px-4 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0"
                             onClick={() => handleSelectSku(producto)}>
                             <span className="block text-sm font-mono font-semibold text-gray-900">{producto.sku}</span>
                             <span className="block text-xs text-gray-500 mt-0.5">
@@ -440,86 +463,32 @@ export default function DefectosPage() {
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Tipo de defecto */}
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Defecto</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    placeholder="Buscar defecto..."
-                    value={defectoSearch}
-                    onChange={(e) => {
-                      setDefectoSearch(e.target.value);
-                      setShowDefectoDropdown(true);
-                      if (!e.target.value) setFormData((p) => ({ ...p, tipoDefectoId: "" }));
-                    }}
-                    onFocus={() => setShowDefectoDropdown(true)}
-                  />
-                  {defectoSearch && (
-                    <button type="button"
-                      onClick={() => { setDefectoSearch(""); setFormData((p) => ({ ...p, tipoDefectoId: "" })); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                {showDefectoDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {filteredDefectos.length === 0 ? (
-                      <p className="px-4 py-2 text-sm text-gray-500">No se encontraron defectos</p>
-                    ) : (
-                      filteredDefectos.map((defecto) => (
-                        <button key={defecto.id} type="button"
-                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                            formData.tipoDefectoId === defecto.id.toString() ? "bg-primary/5 text-primary font-medium" : "text-gray-900"
-                          }`}
-                          onClick={() => handleSelectDefecto(defecto)}>
-                          {defecto.nombre}
-                        </button>
-                      ))
-                    )}
-                  </div>
+                {skuSearch.length >= 2 && !skuConfirmed && !skuLoading && (
+                  <p className="mt-1 text-xs text-gray-400">Selecciona un resultado de la lista</p>
                 )}
               </div>
 
-              {/* Pares rechazados */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Pares Rechazados</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Pares Producidos</label>
                 <input type="text" inputMode="numeric" pattern="[0-9]*" required
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
                   placeholder="Cantidad de pares"
-                  value={formData.paresRechazados}
-                  onChange={(e) => setFormData((p) => ({ ...p, paresRechazados: e.target.value.replace(/\D/g, "") }))}
-                />
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  value={formData.paresProducidos}
+                  onChange={(e) => setFormData((p) => ({ ...p, paresProducidos: e.target.value.replace(/\D/g, "") }))} />
               </div>
 
-              {/* Observaciones */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Observaciones</label>
-                <textarea rows={2}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
-                  value={formData.observaciones}
-                  onChange={(e) => setFormData((p) => ({ ...p, observaciones: e.target.value }))}
-                  placeholder="Observaciones adicionales (opcional)"
-                />
-              </div>
+              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>Cancelar</Button>
-                <Button type="submit" disabled={!formData.tipoDefectoId || !formData.paresRechazados}>
-                  {editingId ? "Guardar Cambios" : "Crear Registro"}
+                <Button type="submit"
+                  disabled={!formData.turnoId || !formData.areaProduccionId || !formData.sku || !formData.paresProducidos}>
+                  {editingId ? "Guardar Cambios" : "Registrar"}
                 </Button>
               </div>
             </form>
           </div>
         </div>
-      )}
-
-      {showDefectoDropdown && (
-        <div className="fixed inset-0 z-40" onClick={() => setShowDefectoDropdown(false)} />
       )}
     </div>
   );
